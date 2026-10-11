@@ -52,6 +52,22 @@ class DatabaseQueueTests: GRDBTestCase {
         }
     }
     
+    func testOpenErrorMessage() throws {
+        let uriFilenamesEnabled = try DatabaseQueue().read { db in
+            try Bool.fetchOne(db, sql: "SELECT sqlite_compileoption_used('USE_URI')")!
+        }
+        guard uriFilenamesEnabled else {
+            throw XCTSkip("URI filenames are not enabled")
+        }
+        do {
+            _ = try DatabaseQueue(path: "file:test.sqlite?mode=bogus")
+            XCTFail("Expected error")
+        } catch let error as DatabaseError {
+            XCTAssertEqual(error.resultCode, .SQLITE_ERROR)
+            XCTAssertEqual(error.message, "no such access mode: bogus")
+        }
+    }
+    
     func testAddRemoveFunction() throws {
         // Adding a function and then removing it should succeed
         let dbQueue = try makeDatabaseQueue()
