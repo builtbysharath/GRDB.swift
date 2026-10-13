@@ -53,15 +53,14 @@ class DatabaseQueueTests: GRDBTestCase {
     }
     
     func testOpenErrorMessage() throws {
-        let uriFilenamesEnabled = try DatabaseQueue().read { db in
-            try Bool.fetchOne(db, sql: "SELECT sqlite_compileoption_used('USE_URI')")!
-        }
-        guard uriFilenamesEnabled else {
-            throw XCTSkip("URI filenames are not enabled")
-        }
+        // Without URI filenames, this path is a file in a missing "file:"
+        // directory, and opening fails with SQLITE_CANTOPEN.
+        let path = "file:" + NSTemporaryDirectory() + "test.sqlite?mode=bogus"
         do {
-            _ = try DatabaseQueue(path: "file:test.sqlite?mode=bogus")
+            _ = try DatabaseQueue(path: path)
             XCTFail("Expected error")
+        } catch DatabaseError.SQLITE_CANTOPEN {
+            throw XCTSkip("URI filenames are not enabled")
         } catch let error as DatabaseError {
             XCTAssertEqual(error.resultCode, .SQLITE_ERROR)
             XCTAssertEqual(error.message, "no such access mode: bogus")
